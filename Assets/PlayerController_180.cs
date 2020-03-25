@@ -9,7 +9,7 @@ public class PlayerController_180 : MonoBehaviour, IDamagable, IBounce
     public enum State
     {
         normal,
-        roll,
+        slide,
     }
     public State state;
 
@@ -54,18 +54,23 @@ public class PlayerController_180 : MonoBehaviour, IDamagable, IBounce
     private bool _isDashCD = false;
     private float _dashCDTime = 0.5f;
 
-    //roll variables
-    private float _rollSpeedMax = 30f;
-    private float _rollSpeedMin = 15f;
-    private float _rollCurrentSpeed = 0f;
-    private float _rollTime = 0.25f;
-    private float _rollCurrentTime = 0f;
-    private float _rollInvincibleTime = 0.6f; // 0~1 for percentage
-    private bool _isRollCD = false;
-    private float _rollCDTime = 0.3f;
+    //slide variables
+    private float _slideSpeedMax = 30f;
+    private float _slideSpeedMin = 15f;
+    private float _slideCurrentSpeed = 0f;
+    private float _slideTime = 0.25f;
+    private float _slideCurrentTime = 0f;
+    private float _slideInvincibleTime = 0.6f; // 0~1 for percentage
+    private bool _isSlideCD = false;
+    private float _slideCDTime = 0.3f;
+
+    //crouch variables
+    private readonly float _crouch_Ori_Offset = 0.1099848f;
+    private readonly float _crouch_Ori_Size = 0.2199695f;
+    private readonly float _crouch_Offset = 0.05244379f;
+    private readonly float _crouch_Size = 0.1048876f;
 
     //backpack variables
-
     public GameObject _BP;
     backPack _BPbackpack;
     private float _throwForce = 16f;
@@ -159,28 +164,32 @@ public class PlayerController_180 : MonoBehaviour, IDamagable, IBounce
                     _isDashButtonDown = true;
                     _impulse.GenerateImpulse();
                 }
-                if (Input.GetKeyDown(KeyCode.Z) && !_isRollCD)
+                if (Input.GetKeyDown(KeyCode.LeftControl) && _inputDir.x != 0 && !_isSlideCD)
                 {
-                    state = State.roll;
-                    _rollCurrentSpeed = _rollSpeedMax;
-                    _rollCurrentTime = 0;
-                    _isRollCD = true;
-                    DOTween.To(() => _rollCurrentSpeed, x => _rollCurrentSpeed = x, _rollSpeedMin, _rollTime).onComplete += () =>
+                    state = State.slide;
+                    _slideCurrentSpeed = _slideSpeedMax;
+                    _slideCurrentTime = 0;
+                    _isSlideCD = true;
+                    DOTween.To(() => _slideCurrentSpeed, x => _slideCurrentSpeed = x, _slideSpeedMin, _slideTime).onComplete += () =>
                     {
                         if (state != State.normal)
                         {
                             state = State.normal;
-                            StartCoroutine(Timer(_rollCDTime, () => _isRollCD = false));
+                            _collider.offset = new Vector2(_collider.offset.x, _crouch_Ori_Offset);
+                            _collider.size = new Vector2(_collider.size.x, _crouch_Ori_Size);
+                            StartCoroutine(Timer(_slideCDTime, () => _isSlideCD = false));
                         }
                     };
                 }
                 break;
-            case State.roll:
-                _playerAnimation.Play_Animation("Roll", _rollTime);
+            case State.slide:
+                _playerAnimation.Play_Animation("Slide", _slideTime);
+                _collider.offset = new Vector2(_collider.offset.x, _crouch_Offset);
+                _collider.size = new Vector2(_collider.size.x, _crouch_Size);
 
                 //invincible time check
-                _rollCurrentTime += Time.deltaTime;
-                if (_rollCurrentTime < _rollTime * _rollInvincibleTime)
+                _slideCurrentTime += Time.deltaTime;
+                if (_slideCurrentTime < _slideTime * _slideInvincibleTime)
                 {
                     _isInvincible = true;
                 }
@@ -194,7 +203,7 @@ public class PlayerController_180 : MonoBehaviour, IDamagable, IBounce
                 {
                     _isJumpButtonDown = true;
                     state = State.normal;
-                    StartCoroutine(Timer(_rollCDTime, () => _isRollCD = false));
+                    StartCoroutine(Timer(_slideCDTime, () => _isSlideCD = false));
                 }
 
                 break;
@@ -226,8 +235,8 @@ public class PlayerController_180 : MonoBehaviour, IDamagable, IBounce
                 }
                 break;
 
-            case State.roll:
-                _rb.velocity = _facingDir * _rollCurrentSpeed;
+            case State.slide:
+                _rb.velocity = _facingDir * _slideCurrentSpeed;
 
                 if (_isJumpButtonDown)
                 {
@@ -263,6 +272,10 @@ public class PlayerController_180 : MonoBehaviour, IDamagable, IBounce
         if (_jumpTimes == 0) return;
         _rb.velocity = new Vector2(_rb.velocity.x, _jumpForce);
         _jumpTimes -= 1;
+    }
+    void Crouch()
+    {
+
     }
 
     public void Hurt(int damage, Transform attacker = null)
